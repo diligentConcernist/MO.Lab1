@@ -19,8 +19,8 @@ class OutOfRangeException(Exception):
 class EmptyEdgeListException(Exception):
     pass
 
-def readGraph():
-    file = open('graph.txt', 'r')
+def readGraph(filename):
+    file = open(filename, 'r')
     all = file.read()
     edges = all.splitlines()
     number_of_nodes = edges.pop(0)
@@ -91,8 +91,8 @@ class Graph:
         if (node_index > self.number_of_nodes) or (node_index < 0):
             raise OutOfRangeException("Node index " +  str(node_index) + " is out of range")
             
-    def createBasicGraph(self, fig):
-        plt.figure(fig)
+    def createBasicGraph(self):
+        plt.figure()
         self.displayed_graph.clear()
         temp_list = [[(str(elem)) for elem in i] for i in self.edges]
         temp_list = list(map(' '.join, temp_list))
@@ -146,10 +146,10 @@ class Graph:
                         path_edges.append([path[i], path[i+1]])
 
                     path.reverse()
-                    print("Optimal path from start to finish is " + str(path) + ", it's length is " + str(int(path_weight)))
+                    print("Optimal path from " + str(start) + " to " + str(finish) + " is " + str(path) + ", it's length is " + str(int(path_weight)))
 
-                    fig = plt.figure("Bellman")
-                    self.createBasicGraph(fig)
+                    
+                    self.createBasicGraph()
                     dist = dict(zip(self.displayed_graph.nodes(), self.distance))
                     nx.set_node_attributes(self.displayed_graph, dist, 'distance')
                 
@@ -177,67 +177,78 @@ class Graph:
         return min_index
 
     def Dijkstra(self, start, finish):
-        self.distance = [float("Inf")] * self.number_of_nodes
-        self.distance[start] = 0
-        prev_node = [None] * self.number_of_nodes
-        visited = [False] * self.number_of_nodes
-
-        for node in range(self.number_of_nodes):
-            first_node = self.MinDistance(visited)
-            visited[first_node] = True
-
-            for second_node in range(self.number_of_nodes):
-                if (self.adj_matrix[first_node][second_node] > 0 and
-                    visited[second_node] == False and
-                    self.distance[second_node] > self.distance[first_node] + self.adj_matrix[first_node, second_node]):
-                        self.distance[second_node] = self.distance[first_node] + self.adj_matrix[first_node, second_node]
-                        prev_node[second_node] = first_node
-
         try:
-            self.checkForConnectivity()
-        except ConnectivityException as e:
+            self.checkForEmptiness()
+            self.checkForLoops()
+            self.checkNegativeWeight()
+        except EmptyEdgeListException as e:
             print(e)
-
+        except SelfLoopException as e:
+            print(e)
+        except NegativeWeightException as e:
+            print(e)
         else:
-            path_weight = self.distance[finish]
-            
-            if (path_weight == float("Inf")):
-                print("Path from " + str(start) + " to " + str(finish) + " does not exist")
+            self.distance = [float("Inf")] * self.number_of_nodes
+            self.distance[start] = 0
+            prev_node = [None] * self.number_of_nodes
+            visited = [False] * self.number_of_nodes
+
+            for node in range(self.number_of_nodes):
+                first_node = self.MinDistance(visited)
+                visited[first_node] = True
+
+                for second_node in range(self.number_of_nodes):
+                    if (self.adj_matrix[first_node][second_node] > 0 and
+                        visited[second_node] == False and
+                        self.distance[second_node] > self.distance[first_node] + self.adj_matrix[first_node, second_node]):
+                            self.distance[second_node] = self.distance[first_node] + self.adj_matrix[first_node, second_node]
+                            prev_node[second_node] = first_node
+
+            try:
+                self.checkForConnectivity()
+            except ConnectivityException as e:
+                print(e)
 
             else:
-                current = finish
-                path = []
-                while (current != None):
-                    path.append(current)
-                    current = prev_node[current]
-                path_edges = []
-                for i in range(len(path) - 1):
-                    path_edges.append([path[i], path[i+1]])
-
-                path.reverse()
-                print("Optimal path from start to finish is " + str(path) + ", it's length is " + str(int(path_weight)))
-                fig = plt.figure("Dijkstra")
-                self.createBasicGraph(fig)
-
-                self.distance = dict(zip(self.displayed_graph.nodes(), self.distance))
-                nx.set_node_attributes(self.displayed_graph, self.distance, 'distance')
-                labels = nx.get_node_attributes(self.displayed_graph, 'distance')
-                for key, value in pos.items():
-                    plt.text(value[0], value[1] + 0.10, s = str(labels[key]), color="red")
+                path_weight = self.distance[finish]
             
-                G = nx.DiGraph()
-                G.add_nodes_from(self.displayed_graph)
-                G.add_edges_from(self.displayed_graph.edges)
-                nx.draw(G, pos)
-                labels = nx.get_edge_attributes(self.displayed_graph,'weight')
-                nx.draw_networkx_edge_labels(self.displayed_graph, pos, edge_labels=labels)
-                nx.draw_networkx_edges(self.displayed_graph, pos, edgelist=path_edges, width=3, edge_color="red")
+                if (path_weight == float("Inf")):
+                    print("Path from " + str(start) + " to " + str(finish) + " does not exist")
+
+                else:
+                    current = finish
+                    path = []
+                    while (current != None):
+                        path.append(current)
+                        current = prev_node[current]
+                    path_edges = []
+                    for i in range(len(path) - 1):
+                        path_edges.append([path[i], path[i+1]])
+
+                    path.reverse()
+                    print("Optimal path from " + str(start) + " to " + str(finish) + " is " + str(path) + ", it's length is " + str(int(path_weight)))
+                    
+                    self.createBasicGraph()
+
+                    self.distance = dict(zip(self.displayed_graph.nodes(), self.distance))
+                    nx.set_node_attributes(self.displayed_graph, self.distance, 'distance')
+                    labels = nx.get_node_attributes(self.displayed_graph, 'distance')
+                    for key, value in pos.items():
+                        plt.text(value[0], value[1] + 0.10, s = str(labels[key]), color="red")
+            
+                    G = nx.DiGraph()
+                    G.add_nodes_from(self.displayed_graph)
+                    G.add_edges_from(self.displayed_graph.edges)
+                    nx.draw(G, pos)
+                    labels = nx.get_edge_attributes(self.displayed_graph,'weight')
+                    nx.draw_networkx_edge_labels(self.displayed_graph, pos, edge_labels=labels)
+                    nx.draw_networkx_edges(self.displayed_graph, pos, edgelist=path_edges, width=3, edge_color="red")
 
     def showResult(self):
-        plt.show()    
+        plt.show()
         
-def createGraph():
-    tmp = readGraph()
+def createGraph(filename = 'graph.txt'):
+    tmp = readGraph(filename)
     number_of_nodes = tmp[0]
     edge_list = tmp[1]
     G = Graph(number_of_nodes)
@@ -245,8 +256,17 @@ def createGraph():
         G.addEdge(edge_list[i][0], edge_list[i][1], edge_list[i][2])
     return G
 
-H = createGraph()
-print(H.edges)
-H.Bellman(0, 4)
-H.Dijkstra(0, 4)
-H.showResult()
+def main():
+    filename = input("Input filename: ")
+    if not filename:
+        H = createGraph()
+    else:
+        H = createGraph(filename)
+        start = int(input("Input start node: "))
+        finish = int(input("Input finish node: "))
+        H.Bellman(start, finish)
+        H.Dijkstra(start, finish)
+        H.showResult()
+
+if __name__ == "__main__":
+    main()
